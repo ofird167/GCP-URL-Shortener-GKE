@@ -34,66 +34,48 @@ $(cd infra/terraform && terraform output -raw gke_connection_command)
 
 ---
 
-### 3. Build & Push Docker Image (GCP Artifact Registry)
-Build the image and push it to the private Google Artifact Registry repository:
+### 3. CI/CD Staged Pipeline Triggers
+* **Staging deployment**: Automatically triggered on any push or merge to the `main` or `develop` branches.
+* **Production deployment**: Automatically triggered by creating and pushing a Git release tag matching `v*` (e.g. `v1.0.4`):
+  ```bash
+  git tag v1.0.4
+  git push origin v1.0.4
+  ```
+
+---
+
+### 4. GKE CPU & Pod Resource Optimization
+To prevent scheduling failures (`Insufficient cpu`) on the single shared-core `e2-medium` node, CPU requests are kept minimal:
+* Pod requests are configured to **5m CPU** and **16Mi Memory** for both staging and production.
+* This allows staging (1 replica) and production (3 replicas) to run alongside GKE system agents successfully.
+
+---
+
+### 5. Access and Test Endpoints
+
+#### Staging (Internal ClusterIP)
+Establish a secure port-forward tunnel to test staging:
 ```bash
-# Load env variables
-export $(grep -v '^#' secrets/.env | xargs)
-
-# Authenticate Docker daemon to the regional Artifact Registry
-gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-
-# Build and tag
-IMAGE_PATH="us-central1-docker.pkg.dev/${GCP_PROJECT_ID}/interview8-repo/url-shortener:latest"
-docker build -t "$IMAGE_PATH" ./app
-
-# Push image to GCP Artifact Registry
-docker push "$IMAGE_PATH"
+kubectl port-forward service/url-shortener 8080:80 -n staging
+```
+Then query the staging service locally:
+```bash
+curl -i -X POST -H "Content-Type: application/json" -d '{"url":"https://github.com/devops-user"}' http://127.0.0.1:8080/shorten
 ```
 
----
+#### Production (Public LoadBalancer)
+Retrieve the external public IP of the production LoadBalancer:
+```bash
+kubectl get svc -n production
+```
+Query the production service directly using the public IP (e.g., `34.31.66.162`):
+```bash
+# Health check
+curl -i http://34.31.66.162/healthz
 
-### 4. Deploy Application via Helm
-Deploy the Helm release into the GKE cluster:
-* **Staging**:
-  ```bash
-  helm upgrade --install url-shortener ./helm/url-shortener \
-    --namespace staging \
-    --create-namespace \
-    --values ./helm/url-shortener/values-staging.yaml
-  ```
-* **Production**:
-  ```bash
-  helm upgrade --install url-shortener ./helm/url-shortener \
-    --namespace production \
-    --create-namespace \
-    --values ./helm/url-shortener/values-production.yaml
-  ```
-
----
-
-### 5. Access and Test Endpoints (Local Tunnel)
-If port `8080` is in use by local services, map the tunnel to a free port.
-
-Establish the secure port-forward tunnel to the service:
-- **Staging**:
-  ```bash
-  kubectl port-forward service/url-shortener 8080:80 -n staging
-  ```
-- **Production** (Alternatively, query the public LoadBalancer IP directly):
-  ```bash
-  kubectl port-forward service/url-shortener 8080:80 -n production
-  ```
-
-In a separate terminal tab/window, query the app endpoints:
-* **Health Check**: `curl http://127.0.0.1:8080/healthz`
-* **Shorten URL**:
-  ```bash
-  curl -X POST http://127.0.0.1:8080/shorten \
-    -H "Content-Type: application/json" \
-    -d '{"url": "https://google.com"}'
-  ```
-* **Metrics**: `curl http://127.0.0.1:8080/metrics`
+# Shorten URL
+curl -i -X POST -H "Content-Type: application/json" -d '{"url":"https://github.com/devops-user"}' http://34.31.66.162/shorten
+```
 
 ---
 
@@ -102,4 +84,3 @@ To destroy all GKE workloads, GCP Load Balancers, and networks safely to avoid u
 ```bash
 ./destroy.sh
 ```
-*(Note: `./destroy.sh` loads variables, initializes Terraform, and runs `terraform destroy -auto-approve` to tear down all GKE resources, registries, secrets, and VPC networks).*

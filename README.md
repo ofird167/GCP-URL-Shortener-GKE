@@ -73,6 +73,11 @@ To teardown all provisioned resources:
 
 ## 3. Git Branching & Release Strategy
 
+### CI/CD Trigger Mappings
+Our GitHub Actions pipeline matches your Git activity to environments automatically:
+* **Staging Deployment**: Triggered automatically on push or merge to the `main` or `develop` branches. It deploys a single replica into the GKE `staging` namespace.
+* **Production Deployment**: Triggered automatically when a release tag matching `v*` (e.g. `v1.0.4`) is pushed. It builds the release image, runs all security scans, and deploys **3 replicas** into the GKE `production` namespace under a public LoadBalancer.
+
 ### Branching Model
 - **`develop`**: The primary integration branch. Pull requests merged here are automatically built and deployed to the **Staging** environment.
 - **`main`**: The stable production branch. Code is merged here from `develop` via pull requests.
@@ -85,18 +90,28 @@ Enforce the following rules on `main` and `develop` in GitHub:
 3. **No direct pushes**: All changes must flow through pull requests.
 
 ### Tagging & Production Releases
-We use semantic versioning (e.g., `v1.0.0`) to tag stable milestones.
+We use semantic versioning (e.g., `v1.0.4`) to tag stable milestones.
 1. Create a release branch or merge `develop` into `main`.
 2. Push a Git tag to trigger the production CD pipeline:
    ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
+   git tag v1.0.4
+   git push origin v1.0.4
    ```
 This automatically builds the image and deploys it to the **Production** namespace on GKE.
 
 ---
 
-## 4. Secrets Management & Rotation
+## 4. GKE Node & Resource Optimizations
+
+### Single Node CPU/Memory Constraints
+Because standard single-node GKE cluster node capacity is shared with GCP system services, resource allocation is strictly managed:
+* **Staging Resource Limits**: Reduced to `5m` CPU requests and `16Mi` memory requests.
+* **Production Resource Limits**: Reduced to `5m` CPU requests and `16Mi` memory requests per replica.
+* **Result**: This allows 1 staging replica and 3 production replicas to run concurrently without encountering scheduling blockages due to `Insufficient cpu`.
+
+---
+
+## 5. Secrets Management & Rotation
 
 We use **GCP Secret Manager** rather than baking secrets into environment variables in GKE manifests.
 - **Workload Identity**: Kubernetes pods authenticate dynamically to GCP using GCP Workload Identity. The Kubernetes service account `url-shortener-sa` is bound to the GCP Service Account `url-shortener-app-sa@<project_id>.iam.gserviceaccount.com`.
@@ -115,7 +130,7 @@ To rotate database passwords or API keys:
 
 ---
 
-## 5. Reliability, Rollbacks, and Safety
+## 6. Reliability, Rollbacks, and Safety
 
 ### Deployment Strategy
 We implement **Rolling Updates** to ensure zero-downtime releases:
@@ -144,7 +159,7 @@ A deployment should be automatically or manually rolled back if:
 
 ---
 
-## 6. Operations Runbook
+## 7. Operations Runbook
 
 ### Incident A: The CI/CD Pipeline Fails on the CI Stage
 If a pull request build fails during CI:
