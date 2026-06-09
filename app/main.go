@@ -98,11 +98,11 @@ func main() {
 
 	// 4. Setup Routes (Using Go 1.22 wildcard features in ServeMux)
 	mux := http.NewServeMux()
-	
+
 	// App API endpoints
 	mux.HandleFunc("POST /shorten", shortener.handleShorten)
 	mux.HandleFunc("GET /{code}", shortener.handleRedirect)
-	
+
 	// Liveness and Readiness Probes
 	mux.HandleFunc("GET /healthz", handleHealthz)
 	mux.HandleFunc("GET /health", handleHealthz)
@@ -275,7 +275,7 @@ func (u *URLShortener) handleShorten(w http.ResponseWriter, r *http.Request) {
 	if r.TLS != nil {
 		scheme = "https"
 	}
-	
+
 	shortURL := fmt.Sprintf("%s://%s/%s", scheme, r.Host, code)
 
 	w.Header().Set("Content-Type", "application/json")
