@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestGenerateRandomCode(t *testing.T) {
@@ -138,5 +140,104 @@ func TestURLShortener_HandleRedirect(t *testing.T) {
 
 	if rrNotFound.Code != http.StatusNotFound {
 		t.Errorf("expected status 404 Not Found, got %d", rrNotFound.Code)
+	}
+}
+
+func TestHandleHealthz(t *testing.T) {
+	req, err := http.NewRequest("GET", "/healthz", nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	handleHealthz(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rr.Code)
+	}
+
+	expected := `{"status":"healthy"}`
+	body := strings.TrimSpace(rr.Body.String())
+	if body != expected {
+		t.Errorf("expected body %s, got %s", expected, body)
+	}
+}
+
+func TestMiddlewareMetricsAndHeaders(t *testing.T) {
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte("Accepted"))
+	})
+
+	wrapped := middlewareMetricsAndHeaders(dummyHandler)
+
+	req, err := http.NewRequest("GET", "/test-middleware", nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	wrapped.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusAccepted {
+		t.Errorf("expected status 202, got %d", rr.Code)
+	}
+
+	// Verify headers
+	if rr.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Errorf("expected X-Content-Type-Options to be nosniff")
+	}
+	if rr.Header().Get("X-Frame-Options") != "DENY" {
+		t.Errorf("expected X-Frame-Options to be DENY")
+	}
+	if rr.Header().Get("Content-Security-Policy") != "default-src 'none'; frame-ancestors 'none';" {
+		t.Errorf("expected CSP header to be set")
+	}
+}
+
+func TestLoadConfig(t *testing.T) {
+	t.Setenv("PORT", "9999")
+	t.Setenv("APP_SECRET_VALUE", "env-secret")
+	t.Setenv("SECRET_MANAGER_TYPE", "local")
+
+	config := loadConfig(slog.Default())
+
+	if config.Port != "9999" {
+		t.Errorf("expected port 9999, got %s", config.Port)
+	}
+	if config.SecretValue != "env-secret" {
+		t.Errorf("expected SecretValue env-secret, got %s", config.SecretValue)
+	}
+}
+
+func TestLoadConfig_GCP(t *testing.T) {
+	t.Setenv("SECRET_MANAGER_TYPE", "gcp")
+	t.Setenv("GCP_PROJECT_ID", "devops-project")
+	t.Setenv("SECRET_NAME", "url-shortener-secret")
+
+	// Attempt config loading in GCP mode. It will log a warning and return.
+	_ = loadConfig(slog.Default())
+}
+
+func TestMainFunc(t *testing.T) {
+	t.Setenv("PORT", "18080")
+	t.Setenv("HOST", "127.0.0.1")
+	t.Setenv("SECRET_MANAGER_TYPE", "local")
+	t.Setenv("APP_SECRET_VALUE", "test-secret")
+
+	go main()
+
+	// Wait for server to start
+	time.Sleep(100 * time.Millisecond)
+
+	// Make a request to verify it is running
+	resp, err := http.Get("http://127.0.0.1:18080/healthz")
+	if err != nil {
+		t.Fatalf("failed to connect to server: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
 }
