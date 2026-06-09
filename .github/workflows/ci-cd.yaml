@@ -1,0 +1,212 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: devops-project
+  GCP_REGION: us-central1
+  GAR_REPO: interview8-repo
+  IMAGE_NAME: url-shortener
+  GKE_CLUSTER: interview8-cluster
+  GKE_ZONE: us-central1-a
+
+jobs:
+  lint-and-test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: app/go.mod
+
+      - name: Go Format Check
+        run: |
+          if [ -n "$(gofmt -l app/)" ]; then
+            echo "Go code is not formatted. Run gofmt -w app/"
+            exit 1
+          fi
+
+      - name: Run Vet
+        run: go vet ./...
+        working-directory: app
+
+      - name: Run Unit Tests
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+        working-directory: app
+
+      # Quality Gate: check test coverage
+      - name: Check Coverage Quality Gate
+        run: |
+          coverage=$(go tool cover -func=coverage.out | grep total | grep -Eo '[0-9]+\.[0-9]+')
+          echo "Total coverage: $coverage%"
+          # Enforce 70% coverage threshold
+          if (( $(echo "$coverage < 70.0" | bc -l) )); then
+             echo "Error: Test coverage $coverage% is below 70.0% threshold."
+             exit 1
+          fi
+        working-directory: app
+        # Only run BC checker if bc is installed (ubuntu-latest has it by default)
+
+  security-scan:
+    name: Static Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Security Quality Gate: Scan filesystem for vulnerabilities
+      - name: Run Trivy FS Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          ignore-unfixed: true
+          format: 'table'
+          exit-code: '1' # Fail the build if vulnerabilities are found
+          severity: 'HIGH,CRITICAL'
+
+  build-and-push:
+    name: Build and Push to Container Registry
+    needs: [lint-and-test, security-scan]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.prep.outputs.tag }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Prepare Image Tag
+        id: prep
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="v-${GITHUB_REF_NAME}-${GITHUB_SHA::8}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Authenticate to GCP using Workload Identity Federation (Secure OIDC)
+      # Fallback: Can also authenticate using a Service Account JSON Key stored in secrets.GCP_SA_KEY
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }} # Inject GCP Service Account key
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker Login for Google Artifact Registry
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          load: true # Load image locally for Trivy scanner
+          tags: |
+            us-central1-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:${{ steps.prep.outputs.tag }}
+            us-central1-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:latest
+
+      # Quality Gate: Scan container image before pushing to Registry
+      - name: Run Trivy Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: us-central1-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:${{ steps.prep.outputs.tag }}
+          format: 'table'
+          exit-code: '1' # Fail build on HIGH or CRITICAL issues
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
+
+      - name: Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          push: true
+          tags: |
+            us-central1-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:${{ steps.prep.outputs.tag }}
+            us-central1-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:latest
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build-and-push
+    # Only deploy on pushes to main or develop (not pull requests)
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Get GKE Credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_ZONE }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Deploy to Staging Namespace
+        run: |
+          helm upgrade --install url-shortener ./helm/url-shortener \
+            --namespace staging \
+            --create-namespace \
+            --values ./helm/url-shortener/values-staging.yaml \
+            --set image.tag=${{ needs.build-and-push.outputs.image_tag }}
+
+  deploy-production:
+    name: Deploy to Production
+    needs: build-and-push
+    # Only deploy to production on Git release tags (e.g. v1.0.0)
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Get GKE Credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_ZONE }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Deploy to Production Namespace
+        run: |
+          helm upgrade --install url-shortener ./helm/url-shortener \
+            --namespace production \
+            --create-namespace \
+            --values ./helm/url-shortener/values-production.yaml \
+            --set image.tag=${{ needs.build-and-push.outputs.image_tag }}

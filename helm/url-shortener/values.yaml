@@ -1,0 +1,30 @@
+# Default values for url-shortener.
+replicaCount: 1
+
+image:
+  registry: us-central1-docker.pkg.dev/devops-project/interview8-repo
+  repository: url-shortener
+  tag: latest
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  annotations: {}
+
+service:
+  type: ClusterIP
+  port: 80
+
+config:
+  gcpProjectId: ""
+  secretManagerType: "local"
+  secretName: "url-shortener-secret"
+  environment: "local"
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi

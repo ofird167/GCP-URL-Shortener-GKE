@@ -1,0 +1,26 @@
+# Secrets and local environment configs
+secrets/
+.env
+
+# Terraform local state and files
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+_override.tf
+_override.tf.json
+.terraformrc
+terraform.rc
+
+# Go compilation files
+app/app
+app/main
+bin/
+
+# OS/Editor files
+.DS_Store
+.idea/
+.vscode/

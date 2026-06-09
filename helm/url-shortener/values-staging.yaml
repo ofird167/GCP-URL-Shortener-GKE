@@ -1,0 +1,25 @@
+# Staging configuration
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 80
+
+serviceAccount:
+  create: true
+  annotations:
+    iam.gke.io/gcp-service-account: "url-shortener-app-sa@devops-project.iam.gserviceaccount.com"
+
+config:
+  gcpProjectId: "devops-project"
+  secretManagerType: "gcp"
+  secretName: "url-shortener-secret"
+  environment: "staging"
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
