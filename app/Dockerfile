@@ -14,7 +14,10 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/main main.go
 
 # --- Runtime Stage ---
-FROM alpine:3.19
+FROM alpine:3.21
+
+# Upgrade packages to get security fixes
+RUN apk update && apk upgrade --no-cache
 
 # Create a non-root user and group
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
