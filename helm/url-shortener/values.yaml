@@ -2,7 +2,7 @@
 replicaCount: 1
 
 image:
-  registry: us-central1-docker.pkg.dev/devops-project/interview8-repo
+  registry: us-central1-docker.pkg.dev/devops-project/GCP-URL-Shortener-GKE-repo
   repository: url-shortener
   tag: latest
   pullPolicy: IfNotPresent

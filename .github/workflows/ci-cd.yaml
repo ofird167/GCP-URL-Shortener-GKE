@@ -19,9 +19,9 @@ permissions:
 env:
   GCP_PROJECT_ID: devops-project
   GCP_REGION: us-central1
-  GAR_REPO: interview8-repo
+  GAR_REPO: GCP-URL-Shortener-GKE-repo
   IMAGE_NAME: url-shortener
-  GKE_CLUSTER: interview8-cluster
+  GKE_CLUSTER: GCP-URL-Shortener-GKE-cluster
   GKE_ZONE: us-central1-a
 
 jobs:

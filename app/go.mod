@@ -1,4 +1,4 @@
-module github.com/devops-user/interview8/app
+module github.com/devops-user/GCP-URL-Shortener-GKE/app
 
 go 1.25.0
 

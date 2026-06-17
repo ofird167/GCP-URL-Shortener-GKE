@@ -1,6 +1,7 @@
 resource "google_container_cluster" "primary" {
   name     = var.cluster_name
   location = var.zone
+  deletion_protection = false
 
   # We can't create a cluster without at least one node pool, but we want to
   # delete the default node pool and use a custom one.
