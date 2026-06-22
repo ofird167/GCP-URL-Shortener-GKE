@@ -1,4 +1,4 @@
-module github.com/devops-user/GCP-URL-Shortener-GKE/app
+module github.com/ofird167/GCP-URL-Shortener-GKE/app
 
 go 1.25.0
 

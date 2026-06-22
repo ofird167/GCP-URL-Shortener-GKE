@@ -60,7 +60,7 @@ kubectl port-forward service/url-shortener 8080:80 -n staging
 ```
 Then query the staging service locally:
 ```bash
-curl -i -X POST -H "Content-Type: application/json" -d '{"url":"https://github.com/devops-user"}' http://127.0.0.1:8080/shorten
+curl -i -X POST -H "Content-Type: application/json" -d '{"url":"https://github.com/ofird167"}' http://127.0.0.1:8080/shorten
 ```
 
 #### Production (Public LoadBalancer)
@@ -74,7 +74,7 @@ Query the production service directly using the public IP (e.g., `34.31.66.162`)
 curl -i http://34.31.66.162/healthz
 
 # Shorten URL
-curl -i -X POST -H "Content-Type: application/json" -d '{"url":"https://github.com/devops-user"}' http://34.31.66.162/shorten
+curl -i -X POST -H "Content-Type: application/json" -d '{"url":"https://github.com/ofird167"}' http://34.31.66.162/shorten
 ```
 
 ---

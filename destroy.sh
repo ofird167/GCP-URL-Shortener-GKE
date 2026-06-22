@@ -17,7 +17,7 @@ export TF_VAR_project_id="$GCP_PROJECT_ID"
 export TF_VAR_region="$GCP_REGION"
 export TF_VAR_zone="$GCP_ZONE"
 export TF_VAR_cluster_name="$GKE_CLUSTER_NAME"
-export TF_VAR_owner="${OWNER:-devops-user}"
+export TF_VAR_owner="${OWNER:-ofird167}"
 export TF_VAR_environment="${ENVIRONMENT:-staging}"
 
 # Change directory to the Terraform infra path
