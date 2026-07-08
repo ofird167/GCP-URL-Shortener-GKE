@@ -17,7 +17,7 @@ permissions:
   id-token: write
 
 env:
-  GCP_PROJECT_ID: devops-project
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID || 'ofirdevops' }}
   GCP_REGION: us-central1
   GAR_REPO: gcp-url-shortener-gke-repo
   IMAGE_NAME: url-shortener
