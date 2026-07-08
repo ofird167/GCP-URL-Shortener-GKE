@@ -205,7 +205,7 @@ func middlewareMetricsAndHeaders(next http.Handler) http.Handler {
 		// Secure Headers
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none';")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none';")
 
 		// Create a custom response writer to capture status code
 		sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}

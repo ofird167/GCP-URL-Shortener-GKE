@@ -190,8 +190,8 @@ func TestMiddlewareMetricsAndHeaders(t *testing.T) {
 	if rr.Header().Get("X-Frame-Options") != "DENY" {
 		t.Errorf("expected X-Frame-Options to be DENY")
 	}
-	if rr.Header().Get("Content-Security-Policy") != "default-src 'none'; frame-ancestors 'none';" {
-		t.Errorf("expected CSP header to be set")
+	if rr.Header().Get("Content-Security-Policy") != "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none';" {
+		t.Errorf("expected CSP header to be set, got %q", rr.Header().Get("Content-Security-Policy"))
 	}
 }
 
