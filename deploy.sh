@@ -40,7 +40,11 @@ helm upgrade --install url-shortener ./helm/url-shortener \
   --create-namespace \
   --values "./helm/url-shortener/values-${ENV}.yaml" \
   --set config.gcpProjectId="$GCP_PROJECT_ID" \
-  --set image.registry="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/gcp-url-shortener-gke-repo"
+  --set image.registry="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/gcp-url-shortener-gke-repo" \
+  --set image.pullPolicy="Always"
+
+echo "[INFO] Triggering GKE deployment rollout restart..."
+kubectl rollout restart deployment/url-shortener -n "$ENV"
 
 echo "[INFO] Waiting for deployment rollout to complete..."
 kubectl rollout status deployment/url-shortener -n "$ENV" --timeout=120s
