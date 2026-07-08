@@ -26,5 +26,5 @@ cd infra/terraform
 # Initialize Terraform with dynamic GCS state backend bucket config
 terraform init -backend-config="bucket=$GCS_BUCKET_NAME"
 
-# Run terraform destroy with auto-approval and forward any additional parameters
-terraform destroy -auto-approve "$@"
+# Run terraform destroy and forward any additional parameters
+terraform destroy "$@"

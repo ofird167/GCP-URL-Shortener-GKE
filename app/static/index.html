@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go URL Shortener & Status Dashboard</title>
+    <!-- Google Fonts: Inter for clean professional UI -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-primary: #09090b;
+            --text-primary: #f4f4f5;
+            --text-secondary: #a1a1aa;
+            --accent-color: #6366f1; /* Indigo-500 */
+            --accent-hover: #4f46e5; /* Indigo-600 */
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --card-bg: rgba(24, 24, 27, 0.6);
+            --card-border: rgba(63, 63, 70, 0.4);
+            --status-green: #10b981;
+            --status-red: #ef4444;
+            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-primary);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.05) 0%, transparent 40%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 1.25rem 1.5rem;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 700;
+            font-size: 1.25rem;
+            letter-spacing: -0.025em;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo svg {
+            stroke: #818cf8;
+            width: 24px;
+            height: 24px;
+        }
+
+        .system-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(24, 24, 27, 0.8);
+            border: 1px solid var(--card-border);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--status-green);
+            box-shadow: 0 0 8px var(--status-green);
+            transition: all 0.3s ease;
+        }
+
+        .status-dot.offline {
+            background-color: var(--status-red);
+            box-shadow: 0 0 8px var(--status-red);
+        }
+
+        main {
+            max-width: 600px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 1rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 1.25rem;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .hero h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            line-height: 1.2;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to bottom, #ffffff 40%, #e4e4e7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        @media (max-width: 640px) {
+            .hero h1 {
+                font-size: 2.25rem;
+            }
+        }
+
+        .hero p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .shortener-form {
+            display: flex;
+            gap: 0.75rem;
+            position: relative;
+        }
+
+        @media (max-width: 640px) {
+            .shortener-form {
+                flex-direction: column;
+            }
+        }
+
+        .input-wrapper {
+            position: relative;
+            flex-grow: 1;
+        }
+
+        .input-wrapper svg {
+            position: absolute;
+            left: 0.85rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            stroke: var(--text-secondary);
+            pointer-events: none;
+            transition: stroke 0.2s ease;
+        }
+
+        .shortener-input {
+            width: 100%;
+            background: rgba(9, 9, 11, 0.5);
+            border: 1px solid var(--card-border);
+            border-radius: 0.75rem;
+            padding: 0.75rem 0.75rem 0.75rem 2.5rem;
+            font-family: inherit;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .shortener-input:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+            background: rgba(9, 9, 11, 0.8);
+        }
+
+        .shortener-input:focus + svg {
+            stroke: var(--accent-color);
+        }
+
+        .shortener-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1.25rem;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+        }
+
+        .shortener-btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .shortener-btn:active {
+            transform: translateY(0);
+        }
+
+        .shortener-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .result-container {
+            margin-top: 1.5rem;
+            display: none;
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .result-box {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(9, 9, 11, 0.6);
+            border: 1px dashed var(--accent-color);
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+        }
+
+        .result-url {
+            flex-grow: 1;
+            font-family: monospace;
+            font-size: 1.05rem;
+            color: #a5b4fc; /* light indigo */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .copy-btn {
+            background: rgba(63, 63, 70, 0.4);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .copy-btn:hover {
+            background: rgba(63, 63, 70, 0.8);
+            border-color: var(--text-secondary);
+        }
+
+        .copy-btn.copied {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--status-green);
+            color: #34d399;
+        }
+
+        .error-message {
+            color: var(--status-red);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .history-card {
+            display: none;
+        }
+
+        .card-header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .card-header-flex h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .clear-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .clear-btn:hover {
+            color: var(--status-red);
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 0.25rem;
+        }
+
+        /* Custom Scrollbar */
+        .history-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .history-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .history-list::-webkit-scrollbar-thumb {
+            background: rgba(63, 63, 70, 0.5);
+            border-radius: 3px;
+        }
+        .history-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(63, 63, 70, 0.8);
+        }
+
+        .history-item {
+            background: rgba(9, 9, 11, 0.3);
+            border: 1px solid var(--card-border);
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .history-info {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            flex-grow: 1;
+        }
+
+        .history-short {
+            font-family: monospace;
+            font-weight: 600;
+            color: #818cf8;
+            text-decoration: none;
+            font-size: 1rem;
+            margin-bottom: 0.15rem;
+        }
+
+        .history-short:hover {
+            text-decoration: underline;
+        }
+
+        .history-long {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .status-item {
+            background: rgba(9, 9, 11, 0.4);
+            border: 1px solid var(--card-border);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .status-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 500;
+        }
+
+        .status-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        footer {
+            padding: 2rem 1.5rem;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--card-border);
+            max-width: 1200px;
+            width: 100%;
+            margin: 2rem auto 0 auto;
+        }
+
+        footer a {
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+            </svg>
+            <span>Go Short</span>
+        </div>
+        <div class="system-badge">
+            <div class="status-dot" id="health-dot"></div>
+            <span id="health-text">Checking System Status...</span>
+        </div>
+    </header>
+
+    <main>
+        <div class="hero">
+            <h1>Shorten Your Links.</h1>
+            <p>A fast, cloud-native URL shortener running secure container workloads on Google Kubernetes Engine.</p>
+        </div>
+
+        <div class="glass-card">
+            <form class="shortener-form" id="shorten-form" onsubmit="handleFormSubmit(event)">
+                <div class="input-wrapper">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+                    </svg>
+                    <input 
+                        type="url" 
+                        class="shortener-input" 
+                        id="url-input" 
+                        placeholder="Paste your long link here..." 
+                        required 
+                        autocomplete="off"
+                    >
+                </div>
+                <button type="submit" class="shortener-btn" id="submit-btn">
+                    <span>Shorten</span>
+                    <div class="spinner" id="btn-spinner"></div>
+                </button>
+            </form>
+            <div class="error-message" id="error-box"></div>
+
+            <div class="result-container" id="result-box">
+                <div class="result-title">Shortened Link</div>
+                <div class="result-box">
+                    <span class="result-url" id="result-url"></span>
+                    <button class="copy-btn" id="copy-btn" onclick="copyToClipboard()">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                        </svg>
+                        <span id="copy-btn-text">Copy</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card history-card" id="history-card">
+            <div class="card-header-flex">
+                <h2>Recent Links</h2>
+                <button class="clear-btn" onclick="clearHistory()">
+                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span>Clear History</span>
+                </button>
+            </div>
+            <div class="history-list" id="history-list"></div>
+        </div>
+
+        <div class="status-grid">
+            <div class="status-item">
+                <span class="status-label">Runtime Engine</span>
+                <span class="status-value">Go 1.25 + Alpine</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Storage Backend</span>
+                <span class="status-value">In-Memory Sync Map</span>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 URL Shortener Service. Hosted on Google Kubernetes Engine (GKE).</p>
+    </footer>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let recentLinks = JSON.parse(localStorage.getItem('short_links') || '[]');
+
+        document.addEventListener("DOMContentLoaded", () => {
+            checkSystemHealth();
+            renderHistory();
+            // Poll health state every 30 seconds
+            setInterval(checkSystemHealth, 30000);
+        });
+
+        function checkSystemHealth() {
+            const dot = document.getElementById("health-dot");
+            const text = document.getElementById("health-text");
+
+            fetch(`${API_BASE}/healthz`)
+                .then(res => {
+                    if (res.ok) return res.json();
+                    throw new Error("unhealthy");
+                })
+                .then(data => {
+                    dot.className = "status-dot";
+                    text.innerText = "System Operational";
+                })
+                .catch(() => {
+                    dot.className = "status-dot offline";
+                    text.innerText = "System Degraded / Offline";
+                });
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const urlInput = document.getElementById("url-input");
+            const submitBtn = document.getElementById("submit-btn");
+            const spinner = document.getElementById("btn-spinner");
+            const errorBox = document.getElementById("error-box");
+            const resultBox = document.getElementById("result-box");
+            const resultUrl = document.getElementById("result-url");
+
+            errorBox.style.display = "none";
+            resultBox.style.display = "none";
+            submitBtn.disabled = true;
+            spinner.style.display = "block";
+
+            const reqBody = { url: urlInput.value };
+
+            fetch(`${API_BASE}/shorten`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(reqBody)
+            })
+            .then(async res => {
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || "Failed to shorten URL");
+                }
+                return data;
+            })
+            .then(data => {
+                resultUrl.innerText = data.short_url;
+                resultBox.style.display = "block";
+                
+                // Add to history
+                addLinkToHistory(data.short_url, urlInput.value);
+                urlInput.value = "";
+            })
+            .catch(err => {
+                errorBox.innerText = err.message;
+                errorBox.style.display = "block";
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                spinner.style.display = "none";
+            });
+        }
+
+        function copyToClipboard() {
+            const urlText = document.getElementById("result-url").innerText;
+            const copyBtn = document.getElementById("copy-btn");
+            const copyBtnText = document.getElementById("copy-btn-text");
+
+            navigator.clipboard.writeText(urlText).then(() => {
+                copyBtn.classList.add("copied");
+                copyBtnText.innerText = "Copied!";
+
+                setTimeout(() => {
+                    copyBtn.classList.remove("copied");
+                    copyBtnText.innerText = "Copy";
+                }, 2000);
+            });
+        }
+
+        function copyHistoryLink(btn, text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalContent = btn.innerHTML;
+                btn.style.color = "#34d399";
+                btn.innerHTML = `
+                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                `;
+                setTimeout(() => {
+                    btn.style.color = "";
+                    btn.innerHTML = originalContent;
+                }, 2000);
+            });
+        }
+
+        function addLinkToHistory(short, long) {
+            // Keep unique items, prepend new item
+            recentLinks = [{ short, long }, ...recentLinks.filter(item => item.short !== short)].slice(0, 5);
+            localStorage.setItem('short_links', JSON.stringify(recentLinks));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const card = document.getElementById("history-card");
+            const list = document.getElementById("history-list");
+
+            if (recentLinks.length === 0) {
+                card.style.display = "none";
+                return;
+            }
+
+            card.style.display = "block";
+            list.innerHTML = "";
+
+            recentLinks.forEach(item => {
+                const itemDiv = document.createElement("div");
+                itemDiv.className = "history-item";
+                itemDiv.innerHTML = `
+                    <div class="history-info">
+                        <a href="${item.short}" target="_blank" class="history-short">${item.short}</a>
+                        <span class="history-long" title="${item.long}">${item.long}</span>
+                    </div>
+                    <button class="copy-btn" style="padding: 0.4rem;" onclick="copyHistoryLink(this, '${item.short}')" title="Copy to Clipboard">
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                        </svg>
+                    </button>
+                `;
+                list.appendChild(itemDiv);
+            });
+        }
+
+        function clearHistory() {
+            recentLinks = [];
+            localStorage.removeItem('short_links');
+            renderHistory();
+        }
+    </script>
+</body>
+</html>

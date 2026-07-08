@@ -1,6 +1,6 @@
 resource "google_artifact_registry_repository" "repo" {
   location      = var.region
-  repository_id = "GCP-URL-Shortener-GKE-repo"
+  repository_id = "gcp-url-shortener-gke-repo"
   description   = "Docker registry for URL shortener app"
   format        = "DOCKER"
 

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -18,6 +19,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+//go:embed static/index.html
+var landingPageHTML []byte
 
 // Config holds the application configuration
 type Config struct {
@@ -102,6 +106,9 @@ func main() {
 	// App API endpoints
 	mux.HandleFunc("POST /shorten", shortener.handleShorten)
 	mux.HandleFunc("GET /{code}", shortener.handleRedirect)
+
+	// Serve static landing page
+	mux.HandleFunc("GET /{$}", handleLandingPage)
 
 	// Liveness and Readiness Probes
 	mux.HandleFunc("GET /healthz", handleHealthz)
@@ -321,4 +328,11 @@ func generateRandomCode(length int) (string, error) {
 		b[i] = charset[idx.Int64()]
 	}
 	return string(b), nil
+}
+
+// handleLandingPage serves the embedded index.html file
+func handleLandingPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(landingPageHTML)
 }

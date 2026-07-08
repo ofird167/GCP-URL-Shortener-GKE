@@ -7,11 +7,9 @@ service:
 
 serviceAccount:
   create: true
-  annotations:
-    iam.gke.io/gcp-service-account: "url-shortener-app-sa@devops-project.iam.gserviceaccount.com"
 
 config:
-  gcpProjectId: "devops-project"
+  gcpProjectId: ""
   secretManagerType: "gcp"
   secretName: "url-shortener-secret"
   environment: "production"

@@ -19,9 +19,9 @@ permissions:
 env:
   GCP_PROJECT_ID: devops-project
   GCP_REGION: us-central1
-  GAR_REPO: GCP-URL-Shortener-GKE-repo
+  GAR_REPO: gcp-url-shortener-gke-repo
   IMAGE_NAME: url-shortener
-  GKE_CLUSTER: GCP-URL-Shortener-GKE-cluster
+  GKE_CLUSTER: url-shortener-gke
   GKE_ZONE: us-central1-a
 
 jobs:
@@ -179,7 +179,9 @@ jobs:
             --namespace staging \
             --create-namespace \
             --values ./helm/url-shortener/values-staging.yaml \
-            --set image.tag=${{ needs.build-and-push.outputs.image_tag }}
+            --set image.tag=${{ needs.build-and-push.outputs.image_tag }} \
+            --set config.gcpProjectId=${{ env.GCP_PROJECT_ID }} \
+            --set image.registry="us-central1-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}"
 
   deploy-production:
     name: Deploy to Production
@@ -209,4 +211,6 @@ jobs:
             --namespace production \
             --create-namespace \
             --values ./helm/url-shortener/values-production.yaml \
-            --set image.tag=${{ needs.build-and-push.outputs.image_tag }}
+            --set image.tag=${{ needs.build-and-push.outputs.image_tag }} \
+            --set config.gcpProjectId=${{ env.GCP_PROJECT_ID }} \
+            --set image.registry="us-central1-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}"

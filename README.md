@@ -69,6 +69,16 @@ To teardown all provisioned resources:
 ./destroy.sh
 ```
 
+### Build & Deploy Application (Manual)
+We supply a helper script to authenticate Docker, build the application container, push it to your private Google Artifact Registry, and deploy the workloads via Helm:
+```bash
+# Build & Deploy to Staging (Default)
+./deploy.sh staging
+
+# Build & Deploy to Production
+./deploy.sh production
+```
+
 ---
 
 ## 3. Git Branching & Release Strategy

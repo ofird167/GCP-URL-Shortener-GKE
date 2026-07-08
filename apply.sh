@@ -26,5 +26,5 @@ cd infra/terraform
 # Initialize Terraform with dynamic GCS state backend bucket config
 terraform init -backend-config="bucket=$GCS_BUCKET_NAME"
 
-# Run terraform apply with auto-approval and forward any additional parameters
-terraform apply -auto-approve "$@"
+# Run terraform apply and forward any additional parameters
+terraform apply "$@"
