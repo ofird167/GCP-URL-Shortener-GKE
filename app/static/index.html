@@ -556,6 +556,18 @@
                 <span class="status-label">Storage Backend</span>
                 <span class="status-value">In-Memory Sync Map</span>
             </div>
+            <div class="status-item">
+                <span class="status-label">Shortened Links</span>
+                <span class="status-value" id="stat-links">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Total Requests</span>
+                <span class="status-value" id="stat-requests">0</span>
+            </div>
+            <div class="status-item" style="grid-column: span 2;">
+                <span class="status-label">Server Uptime</span>
+                <span class="status-value" id="stat-uptime">0s</span>
+            </div>
         </div>
     </main>
 
@@ -570,8 +582,11 @@
         document.addEventListener("DOMContentLoaded", () => {
             checkSystemHealth();
             renderHistory();
+            updateStats();
             // Poll health state every 30 seconds
             setInterval(checkSystemHealth, 30000);
+            // Poll stats every 5 seconds
+            setInterval(updateStats, 5000);
         });
 
         function checkSystemHealth() {
@@ -590,6 +605,36 @@
                 .catch(() => {
                     dot.className = "status-dot offline";
                     text.innerText = "System Degraded / Offline";
+                });
+        }
+
+        function formatUptime(seconds) {
+            if (seconds < 60) return `${seconds}s`;
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            if (m < 60) return `${m}m ${s}s`;
+            const h = Math.floor(m / 60);
+            const remMin = m % 60;
+            return `${h}h ${remMin}m ${s}s`;
+        }
+
+        function updateStats() {
+            const linksText = document.getElementById("stat-links");
+            const reqsText = document.getElementById("stat-requests");
+            const uptimeText = document.getElementById("stat-uptime");
+
+            fetch(`${API_BASE}/api/stats`)
+                .then(res => {
+                    if (res.ok) return res.json();
+                    throw new Error("failed to fetch stats");
+                })
+                .then(data => {
+                    if (linksText) linksText.innerText = data.total_links;
+                    if (reqsText) reqsText.innerText = data.total_requests;
+                    if (uptimeText) uptimeText.innerText = formatUptime(data.uptime_seconds);
+                })
+                .catch(err => {
+                    console.error("Failed to load metrics:", err);
                 });
         }
 

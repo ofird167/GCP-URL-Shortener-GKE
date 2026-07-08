@@ -241,3 +241,33 @@ func TestMainFunc(t *testing.T) {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
 }
+
+func TestURLShortener_HandleStats(t *testing.T) {
+	shortener := &URLShortener{
+		store: map[string]string{
+			"code1": "https://google.com",
+			"code2": "https://github.com",
+		},
+	}
+
+	req, err := http.NewRequest("GET", "/api/stats", nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	shortener.handleStats(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rr.Code)
+	}
+
+	var res StatsResponse
+	if err := json.NewDecoder(rr.Body).Decode(&res); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if res.TotalLinks != 2 {
+		t.Errorf("expected 2 links, got %d", res.TotalLinks)
+	}
+}

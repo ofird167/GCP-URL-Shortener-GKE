@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
@@ -74,6 +75,11 @@ var (
 	)
 )
 
+var (
+	startTime     = time.Now()
+	totalRequests uint64
+)
+
 func init() {
 	// Register Prometheus metrics
 	prometheus.MustRegister(httpRequestsTotal)
@@ -106,6 +112,7 @@ func main() {
 	// App API endpoints
 	mux.HandleFunc("POST /shorten", shortener.handleShorten)
 	mux.HandleFunc("GET /{code}", shortener.handleRedirect)
+	mux.HandleFunc("GET /api/stats", shortener.handleStats)
 
 	// Serve static landing page
 	mux.HandleFunc("GET /{$}", handleLandingPage)
@@ -200,6 +207,7 @@ func loadConfig(logger *slog.Logger) Config {
 // Middleware: Applies security headers, logs requests, and records Prometheus metrics
 func middlewareMetricsAndHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddUint64(&totalRequests, 1)
 		start := time.Now()
 
 		// Secure Headers
@@ -335,4 +343,31 @@ func handleLandingPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(landingPageHTML)
+}
+
+// StatsResponse holds the metrics returned by the /api/stats endpoint
+type StatsResponse struct {
+	UptimeSeconds uint64 `json:"uptime_seconds"`
+	TotalLinks    int    `json:"total_links"`
+	TotalRequests uint64 `json:"total_requests"`
+}
+
+// handleStats handles the API request to fetch real-time application metrics
+func (u *URLShortener) handleStats(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	u.mu.RLock()
+	totalLinks := len(u.store)
+	u.mu.RUnlock()
+
+	uptime := uint64(time.Since(startTime).Seconds())
+	requests := atomic.LoadUint64(&totalRequests)
+
+	res := StatsResponse{
+		UptimeSeconds: uptime,
+		TotalLinks:    totalLinks,
+		TotalRequests: requests,
+	}
+	_ = json.NewEncoder(w).Encode(res)
 }
